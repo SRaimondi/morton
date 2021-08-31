@@ -309,8 +309,9 @@ pub fn encode_3d(x: u32, y: u32, z: u32) -> Encoded3DMorton {
             | internal_3d::ENCODE_TABLE_Z[z_index] as u64;
     }
     // Check if we discarded any bits because the values are too large
-    const MAX_USED_BITS_VALUE: u32 = 1 << 21;
-    if x >= MAX_USED_BITS_VALUE || y >= MAX_USED_BITS_VALUE || z >= MAX_USED_BITS_VALUE {
+    const MAX_USED_BITS_YZ: u32 = 1 << 21;
+    const MAX_USED_BITS_X: u32 = MAX_USED_BITS_YZ + 1;
+    if x >= MAX_USED_BITS_X || y >= MAX_USED_BITS_YZ || z >= MAX_USED_BITS_YZ {
         Encoded3DMorton::SomeBits(code)
     } else {
         Encoded3DMorton::AllBits(code)
@@ -411,22 +412,22 @@ mod test {
             encode_3d(MAX_VALUE, MAX_VALUE, MAX_VALUE),
             Encoded3DMorton::AllBits((1 << 63) - 1)
         );
-        assert!(matches!(
+        assert_eq!(
             encode_3d(MAX_VALUE + 1, MAX_VALUE, MAX_VALUE),
-            Encoded3DMorton::SomeBits(_)
-        ));
-        assert!(matches!(
+            Encoded3DMorton::AllBits(0o1666666666666666666666)
+        );
+        assert_eq!(
             encode_3d(MAX_VALUE, MAX_VALUE + 1, MAX_VALUE),
-            Encoded3DMorton::SomeBits(_)
-        ));
-        assert!(matches!(
+            Encoded3DMorton::SomeBits(0o0555555555555555555555)
+        );
+        assert_eq!(
             encode_3d(MAX_VALUE, MAX_VALUE, MAX_VALUE + 1),
-            Encoded3DMorton::SomeBits(_)
-        ));
-        assert!(matches!(
+            Encoded3DMorton::SomeBits(0o0333333333333333333333)
+        );
+        assert_eq!(
             encode_3d(MAX_VALUE + 1, 0, 0),
-            Encoded3DMorton::SomeBits(_)
-        ));
+            Encoded3DMorton::AllBits(0o1000000000000000000000)
+        );
     }
 
     #[test]
