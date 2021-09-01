@@ -288,14 +288,14 @@ pub fn decode_2d(m: u64) -> (u32, u32) {
 
 /// Small helper enum to distinguish if some bits were discarded encoding the Morton code.
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
-pub enum Encoded3DMorton {
+pub enum Encoded3DCode {
     AllBits(u64),
     SomeBits(u64),
 }
 
-/// Given three indices as 32 bits values, encodes a Morton code from them into a Encoded3DMorton value.
+/// Given three indices as 32 bits values, encodes a Morton code from them into a Encoded3DCode value.
 #[inline]
-pub fn encode_3d(x: u32, y: u32, z: u32) -> Encoded3DMorton {
+pub fn encode_3d(x: u32, y: u32, z: u32) -> Encoded3DCode {
     const EIGHT_BIT_MASK: u32 = 0xFF;
     let mut code = 0u64;
     for byte in (0..4).rev() {
@@ -312,9 +312,9 @@ pub fn encode_3d(x: u32, y: u32, z: u32) -> Encoded3DMorton {
     const MAX_USED_BITS_YZ: u32 = 1 << 21;
     const MAX_USED_BITS_X: u32 = MAX_USED_BITS_YZ + 1;
     if x >= MAX_USED_BITS_X || y >= MAX_USED_BITS_YZ || z >= MAX_USED_BITS_YZ {
-        Encoded3DMorton::SomeBits(code)
+        Encoded3DCode::SomeBits(code)
     } else {
-        Encoded3DMorton::AllBits(code)
+        Encoded3DCode::AllBits(code)
     }
 }
 
@@ -392,41 +392,41 @@ mod test {
     fn test_encode_morton3d() {
         use super::*;
 
-        assert_eq!(encode_3d(0, 0, 0), Encoded3DMorton::AllBits(0));
-        assert_eq!(encode_3d(1, 0, 0), Encoded3DMorton::AllBits(1));
-        assert_eq!(encode_3d(0, 1, 0), Encoded3DMorton::AllBits(2));
-        assert_eq!(encode_3d(1, 1, 0), Encoded3DMorton::AllBits(3));
-        assert_eq!(encode_3d(0, 0, 1), Encoded3DMorton::AllBits(4));
-        assert_eq!(encode_3d(1, 0, 1), Encoded3DMorton::AllBits(5));
-        assert_eq!(encode_3d(0, 1, 1), Encoded3DMorton::AllBits(6));
-        assert_eq!(encode_3d(1, 1, 1), Encoded3DMorton::AllBits(7));
+        assert_eq!(encode_3d(0, 0, 0), Encoded3DCode::AllBits(0));
+        assert_eq!(encode_3d(1, 0, 0), Encoded3DCode::AllBits(1));
+        assert_eq!(encode_3d(0, 1, 0), Encoded3DCode::AllBits(2));
+        assert_eq!(encode_3d(1, 1, 0), Encoded3DCode::AllBits(3));
+        assert_eq!(encode_3d(0, 0, 1), Encoded3DCode::AllBits(4));
+        assert_eq!(encode_3d(1, 0, 1), Encoded3DCode::AllBits(5));
+        assert_eq!(encode_3d(0, 1, 1), Encoded3DCode::AllBits(6));
+        assert_eq!(encode_3d(1, 1, 1), Encoded3DCode::AllBits(7));
 
         assert_eq!(
             encode_3d(0b111, 0b101, 0b001),
-            Encoded3DMorton::AllBits(0b011_001_111)
+            Encoded3DCode::AllBits(0b011_001_111)
         );
 
         // Test that we do get the correct answer for the maximum value
         const MAX_VALUE: u32 = (1 << 21) - 1;
         assert_eq!(
             encode_3d(MAX_VALUE, MAX_VALUE, MAX_VALUE),
-            Encoded3DMorton::AllBits((1 << 63) - 1)
+            Encoded3DCode::AllBits((1 << 63) - 1)
         );
         assert_eq!(
             encode_3d(MAX_VALUE + 1, MAX_VALUE, MAX_VALUE),
-            Encoded3DMorton::AllBits(0o1666666666666666666666)
+            Encoded3DCode::AllBits(0o1666666666666666666666)
         );
         assert_eq!(
             encode_3d(MAX_VALUE, MAX_VALUE + 1, MAX_VALUE),
-            Encoded3DMorton::SomeBits(0o0555555555555555555555)
+            Encoded3DCode::SomeBits(0o0555555555555555555555)
         );
         assert_eq!(
             encode_3d(MAX_VALUE, MAX_VALUE, MAX_VALUE + 1),
-            Encoded3DMorton::SomeBits(0o0333333333333333333333)
+            Encoded3DCode::SomeBits(0o0333333333333333333333)
         );
         assert_eq!(
             encode_3d(MAX_VALUE + 1, 0, 0),
-            Encoded3DMorton::AllBits(0o1000000000000000000000)
+            Encoded3DCode::AllBits(0o1000000000000000000000)
         );
     }
 
