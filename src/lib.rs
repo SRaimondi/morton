@@ -293,6 +293,15 @@ pub enum Encoded3DCode {
     SomeBits(u64),
 }
 
+impl std::convert::Into<u64> for Encoded3DCode {
+    #[inline(always)]
+    fn into(self) -> u64 {
+        match self {
+            Self::AllBits(c) | Self::SomeBits(c) => c,
+        }
+    }
+}
+
 /// Given three indices as 32 bits values, encodes a Morton code from them into a Encoded3DCode value.
 #[inline]
 pub fn encode_3d(x: u32, y: u32, z: u32) -> Encoded3DCode {
