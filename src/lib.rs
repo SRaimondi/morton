@@ -1,5 +1,3 @@
-#![deny(unsafe_code)]
-
 mod internal_2d {
     pub const ENCODE_TABLE_X: [u16; 256] = [
         0, 1, 4, 5, 16, 17, 20, 21, 64, 65, 68, 69, 80, 81, 84, 85, 256, 257, 260, 261, 272, 273,
@@ -293,6 +291,7 @@ pub enum Encoded3DCode {
     SomeBits(u64),
 }
 
+#[allow(clippy::from_over_into)]
 impl std::convert::Into<u64> for Encoded3DCode {
     #[inline(always)]
     fn into(self) -> u64 {
@@ -412,7 +411,7 @@ mod test {
 
         assert_eq!(
             encode_3d(0b111, 0b101, 0b001),
-            Encoded3DCode::AllBits(0b011_001_111)
+            Encoded3DCode::AllBits(0b0_1100_1111)
         );
 
         // Test that we do get the correct answer for the maximum value
@@ -450,6 +449,6 @@ mod test {
         assert_eq!(decode_3d(6), (0, 1, 1));
         assert_eq!(decode_3d(7), (1, 1, 1));
 
-        assert_eq!(decode_3d(0b011_001_111), (0b111, 0b101, 0b001));
+        assert_eq!(decode_3d(0b0_1100_1111), (0b111, 0b101, 0b001));
     }
 }
