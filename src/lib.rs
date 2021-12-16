@@ -258,7 +258,7 @@ mod internal_3d {
 #[inline]
 pub fn encode_2d(x: u32, y: u32) -> u64 {
     const EIGHT_BIT_MASK: u32 = 0xFF;
-    let mut code = 0u64;
+    let mut code = 0_u64;
     for byte in (0..4).rev() {
         let shift = byte * 8;
         let x_index = ((x >> shift) & EIGHT_BIT_MASK) as usize;
@@ -274,8 +274,8 @@ pub fn encode_2d(x: u32, y: u32) -> u64 {
 #[inline]
 pub fn decode_2d(m: u64) -> (u32, u32) {
     const EIGHT_BIT_MASK: u64 = 0xFF;
-    let mut x = 0u32;
-    let mut y = 0u32;
+    let mut x = 0_u32;
+    let mut y = 0_u32;
     for byte in 0..8 {
         let index = ((m >> (byte * 8)) & EIGHT_BIT_MASK) as usize;
         x |= (internal_2d::DECODE_TABLE_X[index] as u32) << (4 * byte);
@@ -305,7 +305,7 @@ impl std::convert::Into<u64> for Encoded3DCode {
 #[inline]
 pub fn encode_3d(x: u32, y: u32, z: u32) -> Encoded3DCode {
     const EIGHT_BIT_MASK: u32 = 0xFF;
-    let mut code = 0u64;
+    let mut code = 0_u64;
     for byte in (0..4).rev() {
         let shift = byte * 8;
         let x_index = ((x >> shift) & EIGHT_BIT_MASK) as usize;
@@ -330,9 +330,9 @@ pub fn encode_3d(x: u32, y: u32, z: u32) -> Encoded3DCode {
 #[inline]
 pub fn decode_3d(m: u64) -> (u32, u32, u32) {
     const NINE_BIT_MASK: u64 = 0x1FF;
-    let mut x = 0u32;
-    let mut y = 0u32;
-    let mut z = 0u32;
+    let mut x = 0_u32;
+    let mut y = 0_u32;
+    let mut z = 0_u32;
     for bits_chunk in 0..7 {
         let index = ((m >> (bits_chunk * 9)) & NINE_BIT_MASK) as usize;
         x |= (internal_3d::DECODE_TABLE_X[index] as u32) << (3 * bits_chunk);
