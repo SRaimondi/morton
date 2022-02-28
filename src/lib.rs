@@ -1,3 +1,5 @@
+use std::convert::Into;
+
 mod internal_2d {
     pub const ENCODE_TABLE_X: [u16; 256] = [
         0, 1, 4, 5, 16, 17, 20, 21, 64, 65, 68, 69, 80, 81, 84, 85, 256, 257, 260, 261, 272, 273,
@@ -292,7 +294,7 @@ pub enum Encoded3DCode {
 }
 
 #[allow(clippy::from_over_into)]
-impl std::convert::Into<u64> for Encoded3DCode {
+impl Into<u64> for Encoded3DCode {
     #[inline(always)]
     fn into(self) -> u64 {
         match self {
