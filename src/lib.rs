@@ -1,5 +1,3 @@
-use std::convert::Into;
-
 mod internal_2d {
     pub const ENCODE_TABLE_X: [u16; 256] = [
         0, 1, 4, 5, 16, 17, 20, 21, 64, 65, 68, 69, 80, 81, 84, 85, 256, 257, 260, 261, 272, 273,
@@ -260,7 +258,7 @@ mod internal_3d {
 #[inline]
 pub fn encode_2d(x: u32, y: u32) -> u64 {
     const EIGHT_BIT_MASK: u32 = 0xFF;
-    let mut code = 0_u64;
+    let mut code = 0;
     for byte in (0..4).rev() {
         let shift = byte * 8;
         let x_index = ((x >> shift) & EIGHT_BIT_MASK) as usize;
@@ -276,8 +274,8 @@ pub fn encode_2d(x: u32, y: u32) -> u64 {
 #[inline]
 pub fn decode_2d(m: u64) -> (u32, u32) {
     const EIGHT_BIT_MASK: u64 = 0xFF;
-    let mut x = 0_u32;
-    let mut y = 0_u32;
+    let mut x = 0;
+    let mut y = 0;
     for byte in 0..8 {
         let index = ((m >> (byte * 8)) & EIGHT_BIT_MASK) as usize;
         x |= (internal_2d::DECODE_TABLE_X[index] as u32) << (4 * byte);
@@ -286,28 +284,14 @@ pub fn decode_2d(m: u64) -> (u32, u32) {
     (x, y)
 }
 
-/// Small helper enum to distinguish if some bits were discarded encoding the Morton code.
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
-pub enum Encoded3DCode {
-    AllBits(u64),
-    SomeBits(u64),
-}
-
-#[allow(clippy::from_over_into)]
-impl Into<u64> for Encoded3DCode {
-    #[inline(always)]
-    fn into(self) -> u64 {
-        match self {
-            Self::AllBits(c) | Self::SomeBits(c) => c,
-        }
-    }
-}
-
 /// Given three indices as 32 bits values, encodes a Morton code from them into a Encoded3DCode value.
 #[inline]
-pub fn encode_3d(x: u32, y: u32, z: u32) -> Encoded3DCode {
+pub fn encode_3d(x: u32, y: u32, z: u32) -> u64 {
+    const MAX_USED_BITS: u32 = 1 << 21;
+    debug_assert!(x < MAX_USED_BITS && y < MAX_USED_BITS && z < MAX_USED_BITS);
+
     const EIGHT_BIT_MASK: u32 = 0xFF;
-    let mut code = 0_u64;
+    let mut code = 0;
     for byte in (0..4).rev() {
         let shift = byte * 8;
         let x_index = ((x >> shift) & EIGHT_BIT_MASK) as usize;
@@ -318,23 +302,16 @@ pub fn encode_3d(x: u32, y: u32, z: u32) -> Encoded3DCode {
             | internal_3d::ENCODE_TABLE_Y[y_index] as u64
             | internal_3d::ENCODE_TABLE_Z[z_index] as u64;
     }
-    // Check if we discarded any bits because the values are too large
-    const MAX_USED_BITS_YZ: u32 = 1 << 21;
-    const MAX_USED_BITS_X: u32 = MAX_USED_BITS_YZ + 1;
-    if x >= MAX_USED_BITS_X || y >= MAX_USED_BITS_YZ || z >= MAX_USED_BITS_YZ {
-        Encoded3DCode::SomeBits(code)
-    } else {
-        Encoded3DCode::AllBits(code)
-    }
+    code
 }
 
 /// Given a morton code as 64 bit, decodes it into three 32 bits values.
 #[inline]
 pub fn decode_3d(m: u64) -> (u32, u32, u32) {
     const NINE_BIT_MASK: u64 = 0x1FF;
-    let mut x = 0_u32;
-    let mut y = 0_u32;
-    let mut z = 0_u32;
+    let mut x = 0;
+    let mut y = 0;
+    let mut z = 0;
     for bits_chunk in 0..7 {
         let index = ((m >> (bits_chunk * 9)) & NINE_BIT_MASK) as usize;
         x |= (internal_3d::DECODE_TABLE_X[index] as u32) << (3 * bits_chunk);
@@ -402,42 +379,16 @@ mod test {
     fn test_encode_morton3d() {
         use super::*;
 
-        assert_eq!(encode_3d(0, 0, 0), Encoded3DCode::AllBits(0));
-        assert_eq!(encode_3d(1, 0, 0), Encoded3DCode::AllBits(1));
-        assert_eq!(encode_3d(0, 1, 0), Encoded3DCode::AllBits(2));
-        assert_eq!(encode_3d(1, 1, 0), Encoded3DCode::AllBits(3));
-        assert_eq!(encode_3d(0, 0, 1), Encoded3DCode::AllBits(4));
-        assert_eq!(encode_3d(1, 0, 1), Encoded3DCode::AllBits(5));
-        assert_eq!(encode_3d(0, 1, 1), Encoded3DCode::AllBits(6));
-        assert_eq!(encode_3d(1, 1, 1), Encoded3DCode::AllBits(7));
+        assert_eq!(encode_3d(0, 0, 0), 0);
+        assert_eq!(encode_3d(1, 0, 0), 1);
+        assert_eq!(encode_3d(0, 1, 0), 2);
+        assert_eq!(encode_3d(1, 1, 0), 3);
+        assert_eq!(encode_3d(0, 0, 1), 4);
+        assert_eq!(encode_3d(1, 0, 1), 5);
+        assert_eq!(encode_3d(0, 1, 1), 6);
+        assert_eq!(encode_3d(1, 1, 1), 7);
 
-        assert_eq!(
-            encode_3d(0b111, 0b101, 0b001),
-            Encoded3DCode::AllBits(0b0_1100_1111)
-        );
-
-        // Test that we do get the correct answer for the maximum value
-        const MAX_VALUE: u32 = (1 << 21) - 1;
-        assert_eq!(
-            encode_3d(MAX_VALUE, MAX_VALUE, MAX_VALUE),
-            Encoded3DCode::AllBits((1 << 63) - 1)
-        );
-        assert_eq!(
-            encode_3d(MAX_VALUE + 1, MAX_VALUE, MAX_VALUE),
-            Encoded3DCode::AllBits(0o1666666666666666666666)
-        );
-        assert_eq!(
-            encode_3d(MAX_VALUE, MAX_VALUE + 1, MAX_VALUE),
-            Encoded3DCode::SomeBits(0o0555555555555555555555)
-        );
-        assert_eq!(
-            encode_3d(MAX_VALUE, MAX_VALUE, MAX_VALUE + 1),
-            Encoded3DCode::SomeBits(0o0333333333333333333333)
-        );
-        assert_eq!(
-            encode_3d(MAX_VALUE + 1, 0, 0),
-            Encoded3DCode::AllBits(0o1000000000000000000000)
-        );
+        assert_eq!(encode_3d(0b111, 0b101, 0b001), 0b0_1100_1111);
     }
 
     #[test]
