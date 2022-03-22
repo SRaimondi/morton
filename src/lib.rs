@@ -261,11 +261,10 @@ pub fn encode_2d(x: u32, y: u32) -> u64 {
     let mut code = 0;
     for byte in (0..4).rev() {
         let shift = byte * 8;
-        let x_index = ((x >> shift) & EIGHT_BIT_MASK) as usize;
-        let y_index = ((y >> shift) & EIGHT_BIT_MASK) as usize;
+        let table_index = move |i| ((i >> shift) & EIGHT_BIT_MASK) as usize;
         code = (code << 16)
-            | internal_2d::ENCODE_TABLE_X[x_index] as u64
-            | internal_2d::ENCODE_TABLE_Y[y_index] as u64;
+            | internal_2d::ENCODE_TABLE_X[table_index(x)] as u64
+            | internal_2d::ENCODE_TABLE_Y[table_index(y)] as u64;
     }
     code
 }
@@ -294,13 +293,11 @@ pub fn encode_3d(x: u32, y: u32, z: u32) -> u64 {
     let mut code = 0;
     for byte in (0..4).rev() {
         let shift = byte * 8;
-        let x_index = ((x >> shift) & EIGHT_BIT_MASK) as usize;
-        let y_index = ((y >> shift) & EIGHT_BIT_MASK) as usize;
-        let z_index = ((z >> shift) & EIGHT_BIT_MASK) as usize;
+        let table_index = move |i| ((i >> shift) & EIGHT_BIT_MASK) as usize;
         code = (code << 24)
-            | internal_3d::ENCODE_TABLE_X[x_index] as u64
-            | internal_3d::ENCODE_TABLE_Y[y_index] as u64
-            | internal_3d::ENCODE_TABLE_Z[z_index] as u64;
+            | internal_3d::ENCODE_TABLE_X[table_index(x)] as u64
+            | internal_3d::ENCODE_TABLE_Y[table_index(y)] as u64
+            | internal_3d::ENCODE_TABLE_Z[table_index(z)] as u64;
     }
     code
 }
