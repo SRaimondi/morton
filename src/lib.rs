@@ -283,12 +283,10 @@ pub fn decode_2d(m: u64) -> (u32, u32) {
     (x, y)
 }
 
-/// Given three indices as 32 bits values, encodes a Morton code from them into a Encoded3DCode value.
+/// Given three indices as 32 bits values, encodes a Morton code from them into a u64 value.
+/// Bits on the upper part (index > 20) are discarded.
 #[inline]
 pub fn encode_3d(x: u32, y: u32, z: u32) -> u64 {
-    const MAX_USED_BITS: u32 = 1 << 21;
-    debug_assert!(x < MAX_USED_BITS && y < MAX_USED_BITS && z < MAX_USED_BITS);
-
     const EIGHT_BIT_MASK: u32 = 0xFF;
     let mut code = 0;
     for byte in (0..4).rev() {
@@ -324,81 +322,81 @@ mod test {
 
     #[test]
     fn test_encode_morton2d() {
-        assert_eq!(encode_2d(0, 0), 0);
-        assert_eq!(encode_2d(1, 0), 1);
-        assert_eq!(encode_2d(0, 1), 2);
-        assert_eq!(encode_2d(1, 1), 3);
+        const MAX_TEST_VALUE: u32 = 256;
 
-        assert_eq!(encode_2d(2, 0), 4);
-        assert_eq!(encode_2d(3, 0), 5);
-        assert_eq!(encode_2d(2, 1), 6);
-        assert_eq!(encode_2d(3, 1), 7);
-
-        assert_eq!(encode_2d(0, 2), 8);
-        assert_eq!(encode_2d(1, 2), 9);
-        assert_eq!(encode_2d(0, 3), 10);
-        assert_eq!(encode_2d(1, 3), 11);
-
-        assert_eq!(encode_2d(2, 2), 12);
-        assert_eq!(encode_2d(3, 2), 13);
-        assert_eq!(encode_2d(2, 3), 14);
-        assert_eq!(encode_2d(3, 3), 15);
-
-        assert_eq!(encode_2d(0b111, 0b001), 0b010111);
+        for j in 0..MAX_TEST_VALUE {
+            for i in 0..MAX_TEST_VALUE {
+                // Assemble morton code in naive way
+                let mut code: u64 = 0;
+                for bit_index in 0..u32::BITS {
+                    let i_bit = (i >> bit_index) & 1;
+                    let j_bit = (j >> bit_index) & 1;
+                    let bit_merge = (j_bit << 1) | i_bit;
+                    code |= (bit_merge as u64) << (2 * bit_index);
+                }
+                assert_eq!(encode_2d(i, j), code);
+            }
+        }
     }
 
     #[test]
     fn test_decode_morton2d() {
-        assert_eq!(decode_2d(0), (0, 0));
-        assert_eq!(decode_2d(1), (1, 0));
-        assert_eq!(decode_2d(2), (0, 1));
-        assert_eq!(decode_2d(3), (1, 1));
+        const MAX_TEST_VALUE: u64 = 1024;
 
-        assert_eq!(decode_2d(4), (2, 0));
-        assert_eq!(decode_2d(5), (3, 0));
-        assert_eq!(decode_2d(6), (2, 1));
-        assert_eq!(decode_2d(7), (3, 1));
-
-        assert_eq!(decode_2d(8), (0, 2));
-        assert_eq!(decode_2d(9), (1, 2));
-        assert_eq!(decode_2d(10), (0, 3));
-        assert_eq!(decode_2d(11), (1, 3));
-
-        assert_eq!(decode_2d(12), (2, 2));
-        assert_eq!(decode_2d(13), (3, 2));
-        assert_eq!(decode_2d(14), (2, 3));
-        assert_eq!(decode_2d(15), (3, 3));
-
-        assert_eq!(decode_2d(0b010111), (0b111, 0b001));
+        for c in 0..MAX_TEST_VALUE {
+            let mut i = 0;
+            let mut j = 0;
+            for bit_index in 0..u32::BITS {
+                let bits = (c >> (2 * bit_index)) & 0b11;
+                let i_bit = bits & 1;
+                let j_bit = bits >> 1;
+                i |= (i_bit as u32) << bit_index;
+                j |= (j_bit as u32) << bit_index;
+            }
+            assert_eq!(decode_2d(c), (i, j));
+        }
     }
 
     #[test]
     fn test_encode_morton3d() {
-        use super::*;
+        const MAX_TEST_VALUE: u32 = 64;
 
-        assert_eq!(encode_3d(0, 0, 0), 0);
-        assert_eq!(encode_3d(1, 0, 0), 1);
-        assert_eq!(encode_3d(0, 1, 0), 2);
-        assert_eq!(encode_3d(1, 1, 0), 3);
-        assert_eq!(encode_3d(0, 0, 1), 4);
-        assert_eq!(encode_3d(1, 0, 1), 5);
-        assert_eq!(encode_3d(0, 1, 1), 6);
-        assert_eq!(encode_3d(1, 1, 1), 7);
-
-        assert_eq!(encode_3d(0b111, 0b101, 0b001), 0b0_1100_1111);
+        for k in 0..MAX_TEST_VALUE {
+            for j in 0..MAX_TEST_VALUE {
+                for i in 0..MAX_TEST_VALUE {
+                    // Assemble morton code in naive way
+                    let mut code: u64 = 0;
+                    for bit_index in 0..21 {
+                        let i_bit = (i >> bit_index) & 1;
+                        let j_bit = (j >> bit_index) & 1;
+                        let k_bit = (k >> bit_index) & 1;
+                        let bit_merge = (k_bit << 2) | (j_bit << 1) | i_bit;
+                        code |= (bit_merge as u64) << (3 * bit_index);
+                    }
+                    assert_eq!(encode_3d(i, j, k), code);
+                }
+            }
+        }
     }
 
     #[test]
     fn test_decode_morton3d() {
-        assert_eq!(decode_3d(0), (0, 0, 0));
-        assert_eq!(decode_3d(1), (1, 0, 0));
-        assert_eq!(decode_3d(2), (0, 1, 0));
-        assert_eq!(decode_3d(3), (1, 1, 0));
-        assert_eq!(decode_3d(4), (0, 0, 1));
-        assert_eq!(decode_3d(5), (1, 0, 1));
-        assert_eq!(decode_3d(6), (0, 1, 1));
-        assert_eq!(decode_3d(7), (1, 1, 1));
+        const MAX_TEST_VALUE: u64 = 1024;
 
-        assert_eq!(decode_3d(0b0_1100_1111), (0b111, 0b101, 0b001));
+        for c in 0..MAX_TEST_VALUE {
+            let mut i = 0;
+            let mut j = 0;
+            let mut k = 0;
+            for bit_index in 0..21 {
+                let bits = (c >> (3 * bit_index)) & 0b111;
+                let i_bit = bits & 1;
+                let j_bit = (bits >> 1) & 1;
+                let k_bit = bits >> 2;
+                i |= (i_bit as u32) << bit_index;
+                j |= (j_bit as u32) << bit_index;
+                k |= (k_bit as u32) << bit_index;
+            }
+            assert_eq!(decode_3d(c), (i, j, k));
+        }
     }
 }
