@@ -254,67 +254,69 @@ mod internal_3d {
     ];
 }
 
-/// Given two indices as 32 bits values, encodes a Morton code from them into a 64 bits value.
-#[inline]
-pub fn encode_2d(x: u32, y: u32) -> u64 {
-    const EIGHT_BIT_MASK: u32 = 0xFF;
-    let mut code = 0;
-    for byte in (0..4).rev() {
-        let shift = byte * 8;
-        let table_index = move |i| ((i >> shift) & EIGHT_BIT_MASK) as usize;
-        code = (code << 16)
-            | internal_2d::ENCODE_TABLE_X[table_index(x)] as u64
-            | internal_2d::ENCODE_TABLE_Y[table_index(y)] as u64;
-    }
-    code
+macro_rules! impl_2d {
+    ($e_name:ident, $d_name:ident, $t_in:ty, $t_out:ty) => {
+        #[inline]
+        pub fn $e_name(x: $t_in, y: $t_in) -> $t_out {
+            const BYTES: u32 = <$t_in>::BITS / 8;
+            (0..BYTES).rev().fold(0, |code, byte| {
+                let shift = 8 * byte;
+                let table_index = move |i| ((i >> shift) & 0xFF) as usize;
+                (code << 16)
+                    | internal_2d::ENCODE_TABLE_X[table_index(x)] as $t_out
+                    | internal_2d::ENCODE_TABLE_Y[table_index(y)] as $t_out
+            })
+        }
+
+        #[inline]
+        pub fn $d_name(c: $t_out) -> ($t_in, $t_in) {
+            const BYTES: u32 = <$t_out>::BITS / 8;
+            (0..BYTES).fold((0, 0), |(x, y), byte| {
+                let index = ((c >> (8 * byte)) & 0xFF) as usize;
+                (
+                    x | ((internal_2d::DECODE_TABLE_X[index] as $t_in) << (4 * byte)),
+                    y | ((internal_2d::DECODE_TABLE_Y[index] as $t_in) << (4 * byte)),
+                )
+            })
+        }
+    };
 }
 
-/// Given a morton code as 64 bit, decodes it into two 32 bits values.
-#[inline]
-pub fn decode_2d(m: u64) -> (u32, u32) {
-    const EIGHT_BIT_MASK: u64 = 0xFF;
-    let mut x = 0;
-    let mut y = 0;
-    for byte in 0..8 {
-        let index = ((m >> (byte * 8)) & EIGHT_BIT_MASK) as usize;
-        x |= (internal_2d::DECODE_TABLE_X[index] as u32) << (4 * byte);
-        y |= (internal_2d::DECODE_TABLE_Y[index] as u32) << (4 * byte);
-    }
-    (x, y)
+impl_2d!(encode_2d_u32_u64, decode_2d_u64_u32, u32, u64);
+impl_2d!(encode_2d_u64_u128, decode_2d_u128_u64, u64, u128);
+
+macro_rules! impl_3d {
+    ($e_name:ident, $d_name:ident, $t_in:ty, $t_out:ty) => {
+        #[inline]
+        pub fn $e_name(x: $t_in, y: $t_in, z: $t_in) -> $t_out {
+            const BYTES: u32 = <$t_in>::BITS / 8;
+            (0..BYTES).rev().fold(0, |code, byte| {
+                let shift = 8 * byte;
+                let table_index = move |i| ((i >> shift) & 0xFF) as usize;
+                (code << 24)
+                    | internal_3d::ENCODE_TABLE_X[table_index(x)] as $t_out
+                    | internal_3d::ENCODE_TABLE_Y[table_index(y)] as $t_out
+                    | internal_3d::ENCODE_TABLE_Z[table_index(z)] as $t_out
+            })
+        }
+
+        #[inline]
+        pub fn $d_name(c: $t_out) -> ($t_in, $t_in, $t_in) {
+            const CHUNKS: u32 = <$t_out>::BITS / 9;
+            (0..CHUNKS).fold((0, 0, 0), |(x, y, z), chunk| {
+                let index = ((c >> (9 * chunk)) & 0x1FF) as usize;
+                (
+                    x | (internal_3d::DECODE_TABLE_X[index] as $t_in) << (3 * chunk),
+                    y | (internal_3d::DECODE_TABLE_Y[index] as $t_in) << (3 * chunk),
+                    z | (internal_3d::DECODE_TABLE_Z[index] as $t_in) << (3 * chunk),
+                )
+            })
+        }
+    };
 }
 
-/// Given three indices as 32 bits values, encodes a Morton code from them into a u64 value.
-/// Bits on the upper part (index > 20) are discarded.
-#[inline]
-pub fn encode_3d(x: u32, y: u32, z: u32) -> u64 {
-    const EIGHT_BIT_MASK: u32 = 0xFF;
-    let mut code = 0;
-    for byte in (0..4).rev() {
-        let shift = byte * 8;
-        let table_index = move |i| ((i >> shift) & EIGHT_BIT_MASK) as usize;
-        code = (code << 24)
-            | internal_3d::ENCODE_TABLE_X[table_index(x)] as u64
-            | internal_3d::ENCODE_TABLE_Y[table_index(y)] as u64
-            | internal_3d::ENCODE_TABLE_Z[table_index(z)] as u64;
-    }
-    code
-}
-
-/// Given a morton code as 64 bit, decodes it into three 32 bits values.
-#[inline]
-pub fn decode_3d(m: u64) -> (u32, u32, u32) {
-    const NINE_BIT_MASK: u64 = 0x1FF;
-    let mut x = 0;
-    let mut y = 0;
-    let mut z = 0;
-    for bits_chunk in 0..7 {
-        let index = ((m >> (bits_chunk * 9)) & NINE_BIT_MASK) as usize;
-        x |= (internal_3d::DECODE_TABLE_X[index] as u32) << (3 * bits_chunk);
-        y |= (internal_3d::DECODE_TABLE_Y[index] as u32) << (3 * bits_chunk);
-        z |= (internal_3d::DECODE_TABLE_Z[index] as u32) << (3 * bits_chunk);
-    }
-    (x, y, z)
-}
+impl_3d!(encode_3d_u32_u64, decode_3d_u64_u32, u32, u64);
+impl_3d!(encode_3d_u32_u128, decode_3d_u128_u64, u64, u128);
 
 #[cfg(test)]
 mod test {
@@ -334,7 +336,7 @@ mod test {
                     let bit_merge = (j_bit << 1) | i_bit;
                     code |= (bit_merge as u64) << (2 * bit_index);
                 }
-                assert_eq!(encode_2d(i, j), code);
+                assert_eq!(encode_2d_u32_u64(i, j), code);
             }
         }
     }
@@ -353,7 +355,7 @@ mod test {
                 i |= (i_bit as u32) << bit_index;
                 j |= (j_bit as u32) << bit_index;
             }
-            assert_eq!(decode_2d(c), (i, j));
+            assert_eq!(decode_2d_u64_u32(c), (i, j));
         }
     }
 
@@ -373,7 +375,7 @@ mod test {
                         let bit_merge = (k_bit << 2) | (j_bit << 1) | i_bit;
                         code |= (bit_merge as u64) << (3 * bit_index);
                     }
-                    assert_eq!(encode_3d(i, j, k), code);
+                    assert_eq!(encode_3d_u32_u64(i, j, k), code);
                 }
             }
         }
@@ -381,7 +383,7 @@ mod test {
 
     #[test]
     fn test_decode_morton3d() {
-        const MAX_TEST_VALUE: u64 = 1024;
+        const MAX_TEST_VALUE: u64 = 2048;
 
         for c in 0..MAX_TEST_VALUE {
             let mut i = 0;
@@ -396,7 +398,7 @@ mod test {
                 j |= (j_bit as u32) << bit_index;
                 k |= (k_bit as u32) << bit_index;
             }
-            assert_eq!(decode_3d(c), (i, j, k));
+            assert_eq!(decode_3d_u64_u32(c), (i, j, k));
         }
     }
 }
