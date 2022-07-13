@@ -316,7 +316,8 @@ macro_rules! impl_3d {
 }
 
 impl_3d!(encode_3d_u32_u64, decode_3d_u64_u32, u32, u64);
-impl_3d!(encode_3d_u32_u128, decode_3d_u128_u64, u64, u128);
+impl_3d!(encode_3d_u32_u128, decode_3d_u128_u32, u32, u128);
+impl_3d!(encode_3d_u64_u128, decode_3d_u128_u64, u64, u128);
 
 #[cfg(test)]
 mod test {
